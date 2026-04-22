@@ -1,20 +1,11 @@
-CC = gcc
-CFLAGS = -Wall -O2 -g
-LIBS = -lSDL2 -lSDL2_image -lSDL2_ttf
+prog: main.o source.o
+	gcc main.o source.o -o prog -lSDL2 -lSDL2_image -lSDL2_ttf -lm  -g
 
-TARGET = dreamcore_game
-SOURCES = main.c joueur.c menu.c
+main.o: main.c
+	gcc -c main.c -g
 
-all: $(TARGET)
-
-$(TARGET): $(SOURCES)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCES) $(LIBS)
-	@echo "Dreamcore - Lucid Dreams compiled! Run: ./$(TARGET)"
+source.o: source.c
+	gcc -c source.c -g
 
 clean:
-	rm -f $(TARGET)
-
-run: $(TARGET)
-	./$(TARGET)
-
-.PHONY: all clean run
+	rm -f *.o prog
