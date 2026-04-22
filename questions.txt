@@ -1,0 +1,61 @@
+Quel est le personnage principal du film Inception ?
+Dom Cobb
+Arthur
+Saito
+Mal
+0
+Quel est l'objet que Cobb utilise comme totem ?
+Une toupie
+Un dé
+Un échec
+Une bague
+0
+Combien de niveaux de rêve y a-t-il dans le film Inception ?
+3
+4
+5
+6
+1
+Qui est l'architecte dans l'équipe d'Inception ?
+Ariadne
+Arthur
+Eames
+Yusuf
+0
+Comment s'appelle la femme de Dom Cobb ?
+Mal
+Ariadne
+Philippa
+Mol
+0
+Que se passe-t-il si vous perdez toutes vos vies dans le jeu ?
+Game Over
+Vous gagnez
+Vous recommencez
+Rien
+0
+Combien de temps avez-vous pour répondre à chaque question ?
+30 secondes
+10 secondes
+60 secondes
+20 secondes
+0
+Quelle touche permet de quitter le jeu ?
+Echap
+Entree
+Espace
+Ctrl
+0
+Quel est le but principal du jeu ?
+Repondre aux questions
+Tuer des ennemis
+Construire des villes
+Chercher des tresors
+0
+Que signifie "Inception" dans le film ?
+Planter une idee dans l'esprit
+Voler des reves
+Voyager dans le temps
+Controler les gens
+0bash: ligne 1: T : commande introuvable
+
