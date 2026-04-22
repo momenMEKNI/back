@@ -4,24 +4,18 @@
 #include "background.h"
 #include <stdio.h>
 
-// ============================================================
-//  POINT D'ENTREE
-// ============================================================
-
 int main(void)
 {
-    // ---- Init SDL ----
     SDL_Init(SDL_INIT_VIDEO);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     TTF_Init();
 
-    SDL_Window   *win  = SDL_CreateWindow("Jeu SDL2",
+    SDL_Window   *win = SDL_CreateWindow("Jeu SDL2",
                             SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                             800, 600, 0);
-    SDL_Renderer *ren  = SDL_CreateRenderer(win, -1,
+    SDL_Renderer *ren = SDL_CreateRenderer(win, -1,
                             SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
-    // Chargement de la police (essai plusieurs chemins)
     TTF_Font *font = TTF_OpenFont("arial.ttf", 18);
     if (!font) font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18);
     if (!font) font = TTF_OpenFont("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 18);
@@ -31,38 +25,22 @@ int main(void)
         return 1;
     }
 
-    // ---- Background ----
-    Background bg;
-    initBackground(&bg, ren, "background.png");
-    initTemps(&bg);
+    GameState gs;
+    int niveauActuel = LEVEL1;
 
-    // ---- Niveau actuel ----
-    Niveau niveauActuel = LEVEL1;
+    initBackground(&gs, ren, "background.png", niveauActuel);
+    initGuide(&gs, ren, font);
 
-    // ---- Plateformes ----
-    #define NB_PLAT 6
-    Plateforme p[NB_PLAT];
-    initPlateformes(p, NB_PLAT, niveauActuel);
-
-    // ---- Guide ----
-    SDL_Texture *guide = NULL;
-    initGuide(&guide, ren, font);
-
-    // ---- Variables de jeu ----
     int  running   = 1;
-    int  mode      = 0;   // 0 = mono, 1 = split-screen
+    int  mode      = 0;
     int  showGuide = 0;
     int  score     = 0;
     char nomJoueur[50] = "";
 
     SDL_Event e;
 
-    // ============================================================
-    //  BOUCLE PRINCIPALE
-    // ============================================================
     while (running)
     {
-        // ---- Evenements ----
         while (SDL_PollEvent(&e))
         {
             if (e.type == SDL_QUIT)
@@ -72,55 +50,33 @@ int main(void)
             {
                 switch (e.key.keysym.sym)
                 {
-                    // Scrolling camera P1
-                    case SDLK_RIGHT: scrolling(&bg, 0); break;
-                    case SDLK_LEFT:  scrolling(&bg, 1); break;
-                    case SDLK_DOWN:  scrolling(&bg, 2); break;
-                    case SDLK_UP:    scrolling(&bg, 3); break;
+                    case SDLK_RIGHT: scrolling(&gs, 0); break;
+                    case SDLK_LEFT:  scrolling(&gs, 1); break;
+                    case SDLK_DOWN:  scrolling(&gs, 2); break;
+                    case SDLK_UP:    scrolling(&gs, 3); break;
 
-                    // Scrolling camera P2 (split-screen)
-                    case SDLK_d: bg.camera2.x += 10; break;
-                    case SDLK_q: bg.camera2.x -= 10; break;
-                    case SDLK_s: bg.camera2.y += 10; break;
-                    case SDLK_z: bg.camera2.y -= 10; break;
+                    case SDLK_d: gs.camera2.x += 10; break;
+                    case SDLK_q: gs.camera2.x -= 10; break;
+                    case SDLK_s: gs.camera2.y += 10; break;
+                    case SDLK_z: gs.camera2.y -= 10; break;
 
-                    // Basculer mono / split-screen
                     case SDLK_m: mode = !mode; break;
 
-                    // Afficher / cacher le guide
                     case SDLK_h: showGuide = !showGuide; break;
 
-                    // Chargement de niveau
                     case SDLK_1:
                         niveauActuel = LEVEL1;
-                        initPlateformes(p, NB_PLAT, niveauActuel);
-                        initTemps(&bg);
-                        printf("Level 1 charge\n");
+                        initBackground(&gs, ren, "background.png", niveauActuel);
                         break;
                     case SDLK_2:
                         niveauActuel = LEVEL2;
-                        initPlateformes(p, NB_PLAT, niveauActuel);
-                        initTemps(&bg);
-                        printf("Level 2 charge\n");
+                        initBackground(&gs, ren, "background.png", niveauActuel);
                         break;
 
-                    // Frapper la premiere plateforme destructible
-                    case SDLK_SPACE:
-                        for (int i = 0; i < NB_PLAT; i++)
-                            if (p[i].type == 2 && p[i].active)
-                            {
-                                detruirePlateforme(p, i);
-                                score += 10;
-                                break;
-                            }
-                        break;
-
-                    // Sous-menu meilleurs scores
                     case SDLK_F2:
-                        afficherScores(ren, font);
+                        gererScores(&gs, ren, font, nomJoueur, score, 1);
                         break;
 
-                    // Quitter
                     case SDLK_ESCAPE:
                         running = 0;
                         break;
@@ -130,27 +86,16 @@ int main(void)
             }
         }
 
-        // ---- Mise a jour ----
-        updatePlateformes(p, NB_PLAT);
-
-        // ---- Rendu ----
         SDL_SetRenderDrawColor(ren, 30, 30, 30, 255);
         SDL_RenderClear(ren);
 
-        // Background
-        afficherBackground(bg, ren, mode);
+        afficherBackground(&gs, ren, mode);
+        afficherTemps(&gs, ren, font);
 
-        // Plateformes
-        afficherPlateformes(p, NB_PLAT, ren);
-
-        // Temps (coin haut gauche)
-        afficherTemps(&bg, ren, font);
-
-        // ---- Score (coin haut droit) ----
         {
             char scoreStr[32];
-            sprintf(scoreStr, "Score: %d", score);
             SDL_Color c = {255, 255, 255, 255};
+            sprintf(scoreStr, "Score: %d", score);
             SDL_Surface *sf = TTF_RenderUTF8_Blended(font, scoreStr, c);
             if (sf)
             {
@@ -162,11 +107,10 @@ int main(void)
             }
         }
 
-        // ---- Indicateur niveau (haut centre) ----
         {
             char lvlStr[20];
-            sprintf(lvlStr, "Level %d", (int)niveauActuel);
             SDL_Color c = {100, 220, 255, 255};
+            sprintf(lvlStr, "Level %d", niveauActuel);
             SDL_Surface *sf = TTF_RenderUTF8_Blended(font, lvlStr, c);
             if (sf)
             {
@@ -178,10 +122,9 @@ int main(void)
             }
         }
 
-        // ---- Indicateur mode (bas gauche) ----
         {
-            const char *modeStr = (mode == 0) ? "Mode: Mono [M]" : "Mode: Split [M]";
             SDL_Color c = {180, 180, 180, 255};
+            const char *modeStr = (mode == 0) ? "Mode: Mono [M]" : "Mode: Split [M]";
             SDL_Surface *sf = TTF_RenderUTF8_Blended(font, modeStr, c);
             if (sf)
             {
@@ -193,10 +136,9 @@ int main(void)
             }
         }
 
-        // ---- Rappel touche guide (bas droite) ----
         {
-            const char *hint = showGuide ? "[H] Fermer guide" : "[H] Aide";
             SDL_Color c = {120, 120, 120, 255};
+            const char *hint = showGuide ? "[H] Fermer guide" : "[H] Aide";
             SDL_Surface *sf = TTF_RenderUTF8_Blended(font, hint, c);
             if (sf)
             {
@@ -208,26 +150,17 @@ int main(void)
             }
         }
 
-        // ---- Guide (si actif) ----
         if (showGuide)
-            afficherGuide(guide, ren, font);
+            gererScores(&gs, ren, font, nomJoueur, score, 3);
 
         SDL_RenderPresent(ren);
         SDL_Delay(16);
     }
 
-    // ============================================================
-    //  FIN DE JEU : saisie du nom et sauvegarde
-    // ============================================================
-    saisirNom(nomJoueur, 50, ren, font);
-    saveScore(nomJoueur, score);
+    gererScores(&gs, ren, font, nomJoueur, score, 0);
+    gererScores(&gs, ren, font, nomJoueur, score, 1);
+    gererScores(&gs, ren, font, nomJoueur, score, 2);
 
-    // Classement final
-    afficherScores(ren, font);
-
-    // ---- Liberation ----
-    libererGuide(&guide);
-    libererBackground(&bg);
     TTF_CloseFont(font);
     SDL_DestroyRenderer(ren);
     SDL_DestroyWindow(win);
