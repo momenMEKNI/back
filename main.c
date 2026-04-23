@@ -40,24 +40,11 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    /* ===== AUDIO ===== */
-    GameSounds sounds;
-    if (!initialiserAudio(&sounds)) {
-        fprintf(stderr, "Échec initialisation audio\n");
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(fenetre);
-        TTF_Quit(); IMG_Quit(); SDL_Quit();
-        return EXIT_FAILURE;
-    }
-    if (Mix_PlayMusic(sounds.background_music, -1) == -1)
-        fprintf(stderr, "Impossible de jouer la musique: %s\n", Mix_GetError());
-
     /* ===== POLICE ===== */
     TTF_Font *police = TTF_OpenFont("arial.ttf", 48);
     if (!police) {
         fprintf(stderr, "Échec chargement police: %s\n", TTF_GetError());
         fprintf(stderr, "Astuce: placez arial.ttf dans le dossier du projet.\n");
-        libererAudio(&sounds);
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(fenetre);
         TTF_Quit(); IMG_Quit(); SDL_Quit();
@@ -108,7 +95,7 @@ int main() {
     while (en_cours) {
 
         if (!puzzle_termine)
-            mettreAJourChronometre(&chrono, &sounds);
+            mettreAJourChronometre(&chrono);
 
         for (int i = 0; i < NB_PIECES; i++)
             if (pieces[i].secoue)
@@ -124,7 +111,6 @@ int main() {
             message_temps_ecoule.temps_affichage = SDL_GetTicks();
             chrono.chrono_arrete = 1;
             puzzle_termine       = 1;
-            Mix_PlayChannel(-1, sounds.fail_sound, 0);
         }
 
         if (message_victoire.visible &&
@@ -203,7 +189,6 @@ int main() {
                                     evenement.button.x - piece_glisse->rect.x;
                                 piece_glisse->decalage_glisse_y =
                                     evenement.button.y - piece_glisse->rect.y;
-                                Mix_PlayChannel(-1, sounds.click_sound, 0);
                                 break;
                             }
                         }
@@ -223,8 +208,7 @@ int main() {
                             chrono.chrono_arrete       = 1;
                             pieces[2].visible          = 0;
                             pieces[3].visible          = 0;
-                            Mix_PlayChannel(-1, sounds.success_sound, 0);
-
+                            
                         } else if (piece_glisse != &pieces[1]) {
                             demarrerSecousse(piece_glisse);
                             chrono.secondes_restantes =
@@ -252,9 +236,6 @@ int main() {
                             evenement.motion.y - piece_glisse->decalage_glisse_y;
                     }
                     break;
-
-                default:
-                    break;
             }
         }
 
@@ -268,7 +249,6 @@ int main() {
     libererChronometre(&chrono);
     SDL_DestroyTexture(fond.texture);
     libererPieces(pieces, NB_PIECES);
-    libererAudio(&sounds);
     TTF_CloseFont(police);
     TTF_Quit();
     IMG_Quit();

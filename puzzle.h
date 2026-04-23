@@ -4,7 +4,6 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL_mixer.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -63,22 +62,11 @@ typedef struct {
 } Message;
 
 typedef struct {
-    Mix_Music *background_music;
-    Mix_Chunk *success_sound;
-    Mix_Chunk *fail_sound;
-    Mix_Chunk *click_sound;
-    Mix_Chunk *tick_sound;
-} GameSounds;
-
-typedef struct {
     int x;
     int y;
 } PositionCible;
 
 /* ===== PROTOTYPES ===== */
-
-int  initialiserAudio(GameSounds *sounds);
-void libererAudio(GameSounds *sounds);
 
 void initialiserFond(Fond *fond, SDL_Renderer *renderer);
 
@@ -91,7 +79,7 @@ void demarrerSecousse(PiecePuzzle *piece);
 void mettreAJourSecousse(PiecePuzzle *piece);
 
 void initialiserChronometre(Chronometre *chrono, SDL_Renderer *renderer);
-void mettreAJourChronometre(Chronometre *chrono, GameSounds *sounds);
+void mettreAJourChronometre(Chronometre *chrono);
 void libererChronometre(Chronometre *chrono);
 
 void initialiserMessage(Message *msg, TTF_Font *police, SDL_Color couleur,

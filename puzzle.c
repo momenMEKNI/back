@@ -15,39 +15,6 @@ PositionCible obtenirPositionCible(int numero_dossier) {
     return pos;
 }
 
-/* ===== AUDIO ===== */
-
-int initialiserAudio(GameSounds *sounds) {
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
-        fprintf(stderr, "SDL_mixer Error: %s\n", Mix_GetError());
-        return 0;
-    }
-
-    sounds->background_music = Mix_LoadMUS("sound.mp3");
-    sounds->success_sound     = Mix_LoadWAV("success.wav");
-    sounds->fail_sound        = Mix_LoadWAV("fail.wav");
-    sounds->click_sound       = Mix_LoadWAV("click.wav");
-    sounds->tick_sound        = Mix_LoadWAV("tick.wav");
-
-    if (!sounds->background_music || !sounds->success_sound ||
-        !sounds->fail_sound       || !sounds->click_sound   ||
-        !sounds->tick_sound) {
-        fprintf(stderr, "Erreur chargement sons: %s\n", Mix_GetError());
-        return 0;
-    }
-    return 1;
-}
-
-void libererAudio(GameSounds *sounds) {
-    if (sounds->background_music) Mix_FreeMusic(sounds->background_music);
-    if (sounds->success_sound)    Mix_FreeChunk(sounds->success_sound);
-    if (sounds->fail_sound)       Mix_FreeChunk(sounds->fail_sound);
-    if (sounds->click_sound)      Mix_FreeChunk(sounds->click_sound);
-    if (sounds->tick_sound)       Mix_FreeChunk(sounds->tick_sound);
-    Mix_CloseAudio();   
-    Mix_Quit();
-}
-
 /* ===== FOND ===== */
 
 void initialiserFond(Fond *fond, SDL_Renderer *renderer) {
@@ -186,7 +153,7 @@ void initialiserChronometre(Chronometre *chrono, SDL_Renderer *renderer) {
     chrono->dernier_clignotement = 0;
 }
 
-void mettreAJourChronometre(Chronometre *chrono, GameSounds *sounds) {
+void mettreAJourChronometre(Chronometre *chrono) {
     if (chrono->chrono_arrete || chrono->temps_ecoule) return;
 
     Uint32 temps_actuel = SDL_GetTicks();
@@ -221,7 +188,6 @@ void mettreAJourChronometre(Chronometre *chrono, GameSounds *sounds) {
         chrono->rect.y = chrono->rect_originale.y + decalage;
 
         if (temps_actuel - chrono->dernier_clignotement > 500) {
-            Mix_PlayChannel(-1, sounds->tick_sound, 0);
             chrono->dernier_clignotement = temps_actuel;
         }
     }
