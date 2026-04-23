@@ -20,6 +20,10 @@ typedef struct {
     char currentAnim[20];
     float velocityY;
     int isGrounded, isMoving, isRunning;
+    
+    int rightPressed;
+    int leftPressed;
+    
     char costume[50];
     SDL_Color color;
 } Joueur;
