@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 
 #define NB_QUESTIONS_QUIZ 10  // ✅ Nombre de questions par partie
 
@@ -82,7 +83,97 @@ int prochaineQuestion(Question questions[], int nb) {
     return -1;
 }
 
-// ✅ Retourne le score final (pas juste 0/1)
+// ✅ Fonction pour dessiner une horloge qui diminue (sans texte numérique)
+void dessinerHorloge(SDL_Renderer *renderer, int temps_restant, int temps_max, int x, int y, int rayon) {
+    // Calculer l'angle en fonction du temps restant (angle en radians)
+    float angle = (float)temps_restant / temps_max * 2 * M_PI;
+    // L'horloge diminue de 360° à 0° : 0 secondes = 0°, temps_max = 360°
+    float angle_final = angle; // 0° quand temps_restant = 0, 360° quand temps_restant = temps_max
+    
+    // Couleur de l'arc (blanc à rouge)
+    SDL_Color couleur_arc;
+    if (temps_restant <= 5) {
+        couleur_arc = (SDL_Color){255, 50, 50, 255}; // Rouge clignotant
+    } else if (temps_restant <= 10) {
+        couleur_arc = (SDL_Color){255, 200, 50, 255}; // Orange
+    } else {
+        couleur_arc = (SDL_Color){80, 200, 255, 255}; // Bleu clair
+    }
+    
+    // Dessiner l'anneau extérieur (fond gris)
+    SDL_SetRenderDrawColor(renderer, 60, 60, 80, 255);
+    for (int w = 0; w < 8; w++) {
+        for (int i = -w; i <= w; i++) {
+            for (int j = -w; j <= w; j++) {
+                if (i*i + j*j <= rayon*rayon) {
+                    SDL_RenderDrawPoint(renderer, x + i, y + j);
+                }
+            }
+        }
+    }
+    
+    // Dessiner l'anneau intérieur (noir)
+    SDL_SetRenderDrawColor(renderer, 20, 20, 40, 255);
+    for (int w = 0; w < rayon-5; w++) {
+        for (int i = -w; i <= w; i++) {
+            for (int j = -w; j <= w; j++) {
+                if (i*i + j*j <= (rayon-5)*(rayon-5)) {
+                    SDL_RenderDrawPoint(renderer, x + i, y + j);
+                }
+            }
+        }
+    }
+    
+    // Dessiner l'arc de cercle (aiguille de l'horloge)
+    int cx = x;
+    int cy = y;
+    int r = rayon - 5;
+    
+    // Dessiner l'arc de cercle (secteur)
+    if (angle_final > 0) {
+        int aiguille_x, aiguille_y;
+        float angle_step = angle_final / 30.0f;
+        
+        // Tracer plusieurs lignes pour former un secteur
+        SDL_SetRenderDrawColor(renderer, couleur_arc.r, couleur_arc.g, couleur_arc.b, 200);
+        for (float a = 0; a <= angle_final; a += angle_step) {
+            aiguille_x = cx + (int)(r * sin(a));
+            aiguille_y = cy - (int)(r * cos(a));
+            SDL_RenderDrawLine(renderer, cx, cy, aiguille_x, aiguille_y);
+        }
+        
+        // Tracer l'arc externe
+        for (float a = 0; a <= angle_final; a += 0.05f) {
+            aiguille_x = cx + (int)(r * sin(a));
+            aiguille_y = cy - (int)(r * cos(a));
+            for (int offset = -2; offset <= 2; offset++) {
+                SDL_RenderDrawPoint(renderer, aiguille_x + offset, aiguille_y);
+                SDL_RenderDrawPoint(renderer, aiguille_x, aiguille_y + offset);
+            }
+        }
+    }
+    
+    // Effet de pulsation quand le temps est critique (<= 3 secondes)
+    if (temps_restant <= 3) {
+        static int pulse = 0;
+        pulse = (pulse + 1) % 20;
+        if (pulse < 10) {
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 100);
+            for (int w = 0; w < rayon + 5; w++) {
+                for (int i = -w; i <= w; i++) {
+                    for (int j = -w; j <= w; j++) {
+                        if (i*i + j*j <= (rayon+5)*(rayon+5) && i*i + j*j >= (rayon-5)*(rayon-5)) {
+                            SDL_RenderDrawPoint(renderer, x + i, y + j);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ✅ Retourne le score final
 int runEnigme(SDL_Renderer *renderer) {
     srand(time(NULL));
 
@@ -202,11 +293,9 @@ int runEnigme(SDL_Renderer *renderer) {
                     for (int i = 0; i < MAX_REPONSES; i++) {
                         if (SDL_PointInRect(&p, &zones_reponses[i])) {
                             if (i == questions[jeu.question_actuelle].bonne_reponse) {
-                                // ✅ Bonne réponse → +100 points
                                 jeu.score += 100;
                                 message_correct = 1;
                             } else {
-                                // ✅ Mauvaise réponse → -1 vie
                                 jeu.vies--;
                                 message_correct = 0;
                                 if (jeu.vies <= 0) game_over = 1;
@@ -277,11 +366,11 @@ int runEnigme(SDL_Renderer *renderer) {
             SDL_DestroyTexture(tex_vies);
         }
 
-        // ✅ Compteur de questions (ex: "Q 3/10")
+        // Compteur de questions
         char texte_qnum[30];
         int q_actuelle = 0;
         for (int i = 0; i < nb_questions; i++) if (questions[i].deja_vu) q_actuelle++;
-        if (jeu.question_actuelle != -1) q_actuelle++; // question en cours
+        if (jeu.question_actuelle != -1) q_actuelle++;
         sprintf(texte_qnum, "Q %d/%d", q_actuelle, nb_questions);
         SDL_Surface *surf_qnum = TTF_RenderText_Blended(font_titre, texte_qnum, blanc);
         if (surf_qnum) {
@@ -292,29 +381,12 @@ int runEnigme(SDL_Renderer *renderer) {
             SDL_DestroyTexture(tex_qnum);
         }
         
-        // Barre de temps
-        SDL_Rect barre_fond = {800, 15, 170, 40};
-        SDL_SetRenderDrawColor(renderer, 60, 60, 60, 255);
-        SDL_RenderFillRect(renderer, &barre_fond);
+        // ===== HORLOGE ANIMÉE (sans texte numérique) =====
+        int horloge_x = 920;
+        int horloge_y = 35;
+        int horloge_rayon = 25;
         
-        int pourcentage = (jeu.temps_restant * 170) / 30;
-        if (pourcentage < 0) pourcentage = 0;
-        if (pourcentage > 170) pourcentage = 170;
-        SDL_Rect barre_temps = {800, 15, pourcentage, 40};
-        SDL_Color couleur_temps = jeu.temps_restant <= 5 ? rouge : (jeu.temps_restant <= 10 ? or : vert);
-        SDL_SetRenderDrawColor(renderer, couleur_temps.r, couleur_temps.g, couleur_temps.b, 255);
-        SDL_RenderFillRect(renderer, &barre_temps);
-        
-        char texte_temps[20];
-        sprintf(texte_temps, "%ds", jeu.temps_restant);
-        SDL_Surface *surf_temps = TTF_RenderText_Blended(font_titre, texte_temps, blanc);
-        if (surf_temps) {
-            SDL_Texture *tex_temps = SDL_CreateTextureFromSurface(renderer, surf_temps);
-            SDL_Rect rect_temps = {855, 22, 60, 30};
-            SDL_RenderCopy(renderer, tex_temps, NULL, &rect_temps);
-            SDL_FreeSurface(surf_temps);
-            SDL_DestroyTexture(tex_temps);
-        }
+        dessinerHorloge(renderer, jeu.temps_restant, 30, horloge_x, horloge_y, horloge_rayon);
         
         // ===== GAME OVER =====
         if (game_over) {
@@ -352,7 +424,7 @@ int runEnigme(SDL_Renderer *renderer) {
                 SDL_DestroyTexture(tex_msg);
             }
         }
-        // ===== VICTOIRE (toutes les 10 questions répondues) =====
+        // ===== VICTOIRE =====
         else if (jeu.question_actuelle == -1) {
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 220);
@@ -388,7 +460,7 @@ int runEnigme(SDL_Renderer *renderer) {
                 SDL_DestroyTexture(tex_msg);
             }
         }
-        // ===== MESSAGE FEEDBACK (bonne/mauvaise réponse) =====
+        // ===== MESSAGE FEEDBACK =====
         else if (afficher_message) {
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 200);
@@ -477,6 +549,5 @@ int runEnigme(SDL_Renderer *renderer) {
     if (font_question) TTF_CloseFont(font_question);
     if (font_reponse)  TTF_CloseFont(font_reponse);
     
-    // ✅ Retourner le score final
     return jeu.score;
 }

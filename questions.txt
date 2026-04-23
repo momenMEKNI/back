@@ -4,37 +4,37 @@ Arthur
 Saito
 Mal
 0
-Quel est l'objet que Cobb utilise comme totem ?
+Quel est l objet que Cobb utilise comme totem ?
 Une toupie
 Un dé
 Un échec
 Une bague
 0
-Combien de niveaux de rêve y a-t-il dans le film Inception ?
+Combien de niveaux de reve y a t il dans le film Inception ?
 3
 4
 5
 6
 1
-Qui est l'architecte dans l'équipe d'Inception ?
+Qui est l'architecte dans l équipe d Inception ?
 Ariadne
 Arthur
 Eames
 Yusuf
 0
-Comment s'appelle la femme de Dom Cobb ?
+Comment s appelle la femme de Dom Cobb ?
 Mal
 Ariadne
 Philippa
 Mol
 0
-Que se passe-t-il si vous perdez toutes vos vies dans le jeu ?
+Que se passe t il si vous perdez toutes vos vies dans le jeu ?
 Game Over
 Vous gagnez
 Vous recommencez
 Rien
 0
-Combien de temps avez-vous pour répondre à chaque question ?
+Combien de temps avez vous pour repondre a chaque question ?
 30 secondes
 10 secondes
 60 secondes
