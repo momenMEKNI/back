@@ -10,8 +10,6 @@
 
 // Définition des états du jeu
 typedef enum {
-    ETAT_ACCUEIL,
-    ETAT_CHARGEMENT,
     ETAT_QUIZ,
     ETAT_RESULTATS,
     ETAT_QUITTER,
@@ -73,59 +71,6 @@ void cleanup(SDL_Window *window, SDL_Renderer *renderer) {
     SDL_Quit();
 }
 
-void afficherEcranAccueil(SDL_Renderer *renderer) {
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
-    
-    // Ici vous pouvez afficher un écran d'accueil
-    // Pour l'instant, juste un message dans la console
-    printf("=== ECRAN D'ACCUEIL ===\n");
-    printf("Appuyez sur une touche pour continuer...\n");
-    
-    SDL_RenderPresent(renderer);
-    
-    // Attendre une touche
-    SDL_Event e;
-    int attente = 1;
-    while (attente) {
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) {
-                attente = 0;
-            }
-            if (e.type == SDL_KEYDOWN) {
-                attente = 0;
-            }
-        }
-        SDL_Delay(100);
-    }
-}
-
-void afficherResultats(SDL_Renderer *renderer, int score) {
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
-    
-    printf("=== RESULTATS FINAUX ===\n");
-    printf("Score final: %d\n", score);
-    printf("Appuyez sur une touche pour quitter...\n");
-    
-    SDL_RenderPresent(renderer);
-    
-    // Attendre une touche
-    SDL_Event e;
-    int attente = 1;
-    while (attente) {
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) {
-                attente = 0;
-            }
-            if (e.type == SDL_KEYDOWN) {
-                attente = 0;
-            }
-        }
-        SDL_Delay(100);
-    }
-}
-
 int main(int argc, char* argv[]) {
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
@@ -136,76 +81,42 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
-    // Variable pour contrôler la boucle principale
     int programme_actif = 1;
-    
-    // État initial du jeu
-    EtatJeu etat_actuel = ETAT_ACCUEIL;
+
+    // ✅ On démarre directement sur ETAT_QUIZ (plus d'accueil ni de chargement)
+    EtatJeu etat_actuel = ETAT_QUIZ;
     int resultat_quiz = 0;
     int score_final = 0;
     
-    // Boucle principale avec switch-case
     while (programme_actif) {
         
         switch (etat_actuel) {
-            
-            case ETAT_ACCUEIL:
-                printf("\n--- État: ACCUEIL ---\n");
-                afficherEcranAccueil(renderer);
-                etat_actuel = ETAT_CHARGEMENT;
-                break;
-                
-            case ETAT_CHARGEMENT:
-                printf("\n--- État: CHARGEMENT ---\n");
-                printf("Chargement des ressources...\n");
-                // Ici on pourrait charger des sons, des images, etc.
-                SDL_Delay(1000); // Simule un chargement
-                etat_actuel = ETAT_QUIZ;
-                break;
                 
             case ETAT_QUIZ:
-                printf("\n--- État: QUIZ ---\n");
-                printf("Lancement du quiz...\n");
+                printf("\n--- Lancement du quiz ---\n");
                 resultat_quiz = runEnigme(renderer);
-                
-                // Simuler un score (à remplacer par le vrai score retourné par runEnigme)
-                score_final = resultat_quiz * 100;
-                
-                etat_actuel = ETAT_RESULTATS;
-                break;
-                
-            case ETAT_RESULTATS:
-                printf("\n--- État: RESULTATS ---\n");
-                afficherResultats(renderer, score_final);
+                score_final = resultat_quiz;
                 etat_actuel = ETAT_QUITTER;
                 break;
                 
             case ETAT_QUITTER:
-                printf("\n--- État: QUITTER ---\n");
-                printf("Fermeture du jeu...\n");
+                printf("\nFermeture du jeu...\n");
+                printf("Score final: %d\n", score_final);
                 programme_actif = 0;
                 break;
                 
             case ETAT_ERREUR:
-                printf("\n--- État: ERREUR ---\n");
-                printf("Une erreur est survenue !\n");
+                printf("\nUne erreur est survenue !\n");
                 programme_actif = 0;
                 break;
                 
             default:
-                printf("État inconnu !\n");
+                printf("Etat inconnu !\n");
                 programme_actif = 0;
                 break;
         }
     }
     
     cleanup(window, renderer);
-    
-    if (resultat_quiz) {
-        printf("\nQuiz terminé avec succès\n");
-        printf("Score final: %d\n", score_final);
-    }
-    
     return 0;
 }
-
