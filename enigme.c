@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#define NB_QUESTIONS_QUIZ 10  // ✅ Nombre de questions par partie
+
 // Fonction pour charger les questions
 int chargerQuestions(const char* fichier, Question questions[], int max) {
     FILE* file = fopen(fichier, "r");
@@ -17,18 +19,14 @@ int chargerQuestions(const char* fichier, Question questions[], int max) {
     char ligne[MAX_TEXTE];
     
     while (count < max && fgets(ligne, sizeof(ligne), file)) {
-        // Ignorer les lignes vides ou commentaires
         if (ligne[0] == '\n' || ligne[0] == '#') continue;
         
-        // Enlever le saut de ligne
         ligne[strcspn(ligne, "\n")] = 0;
         strcpy(questions[count].question, ligne);
         
-        // Lire les 4 réponses
         for (int i = 0; i < MAX_REPONSES; i++) {
             if (fgets(ligne, sizeof(ligne), file)) {
                 ligne[strcspn(ligne, "\n")] = 0;
-                // Enlever l'éventuel numéro au début de la ligne
                 char *ptr = ligne;
                 while (*ptr >= '0' && *ptr <= '9') ptr++;
                 if (*ptr == ' ' || *ptr == '.') ptr++;
@@ -37,7 +35,6 @@ int chargerQuestions(const char* fichier, Question questions[], int max) {
             }
         }
         
-        // Lire l'index de la bonne réponse
         if (fgets(ligne, sizeof(ligne), file)) {
             questions[count].bonne_reponse = atoi(ligne);
         }
@@ -50,9 +47,8 @@ int chargerQuestions(const char* fichier, Question questions[], int max) {
     return count;
 }
 
-// Mélanger les questions
+// Mélanger les questions (Fisher-Yates)
 void melangerQuestions(Question questions[], int nb) {
-    srand(time(NULL));
     for (int i = nb - 1; i > 0; i--) {
         int j = rand() % (i + 1);
         Question temp = questions[i];
@@ -61,28 +57,50 @@ void melangerQuestions(Question questions[], int nb) {
     }
 }
 
+// ✅ Sélectionner NB_QUESTIONS_QUIZ questions aléatoires parmi toutes
+int selectionnerQuestions(Question toutes[], int nb_total, Question selection[], int nb_select) {
+    if (nb_total < nb_select) nb_select = nb_total;
+    
+    // Copier et mélanger
+    Question copie[MAX_QUESTIONS];
+    for (int i = 0; i < nb_total; i++) copie[i] = toutes[i];
+    melangerQuestions(copie, nb_total);
+    
+    // Prendre les nb_select premières
+    for (int i = 0; i < nb_select; i++) {
+        selection[i] = copie[i];
+        selection[i].deja_vu = 0;
+    }
+    return nb_select;
+}
+
 // Trouver la prochaine question non vue
 int prochaineQuestion(Question questions[], int nb) {
     for (int i = 0; i < nb; i++) {
-        if (!questions[i].deja_vu) {
-            return i;
-        }
+        if (!questions[i].deja_vu) return i;
     }
     return -1;
 }
 
+// ✅ Retourne le score final (pas juste 0/1)
 int runEnigme(SDL_Renderer *renderer) {
-    // Charger les questions
-    Question questions[MAX_QUESTIONS];
-    int nb_questions = chargerQuestions("questions.txt", questions, MAX_QUESTIONS);
+    srand(time(NULL));
+
+    // Charger toutes les questions
+    Question toutes_questions[MAX_QUESTIONS];
+    int nb_total = chargerQuestions("questions.txt", toutes_questions, MAX_QUESTIONS);
     
-    if (nb_questions == 0) {
+    if (nb_total == 0) {
         printf("Aucune question chargee!\n");
         return 0;
     }
     
-    melangerQuestions(questions, nb_questions);
+    // ✅ Sélectionner 10 questions aléatoires
+    Question questions[NB_QUESTIONS_QUIZ];
+    int nb_questions = selectionnerQuestions(toutes_questions, nb_total, questions, NB_QUESTIONS_QUIZ);
     
+    printf("Quiz: %d questions selectionnees aleatoirement\n", nb_questions);
+
     // Initialiser le jeu
     JeuData jeu = {
         .score = 0,
@@ -93,7 +111,7 @@ int runEnigme(SDL_Renderer *renderer) {
         .question_actuelle = prochaineQuestion(questions, nb_questions)
     };
     
-    // CHARGER LE FOND (AJOUTÉ)
+    // Charger le fond
     SDL_Texture *bg = NULL;
     bg = IMG_LoadTexture(renderer, "images/background.png");
     
@@ -102,7 +120,6 @@ int runEnigme(SDL_Renderer *renderer) {
     TTF_Font *font_question = NULL;
     TTF_Font *font_reponse = NULL;
     
-    // Essayer différentes polices
     const char* fonts[] = {
         "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -112,33 +129,14 @@ int runEnigme(SDL_Renderer *renderer) {
         "C:\\Windows\\Fonts\\arial.ttf"
     };
     
-    for (int i = 0; i < 6; i++) {
-        font_titre = TTF_OpenFont(fonts[i], 28);
-        if (font_titre) break;
-    }
+    for (int i = 0; i < 6; i++) { font_titre   = TTF_OpenFont(fonts[i], 28); if (font_titre)   break; }
+    for (int i = 0; i < 6; i++) { font_question = TTF_OpenFont(fonts[i], 24); if (font_question) break; }
+    for (int i = 0; i < 6; i++) { font_reponse  = TTF_OpenFont(fonts[i], 22); if (font_reponse)  break; }
     
-    for (int i = 0; i < 6; i++) {
-        font_question = TTF_OpenFont(fonts[i], 24);
-        if (font_question) break;
-    }
-    
-    for (int i = 0; i < 6; i++) {
-        font_reponse = TTF_OpenFont(fonts[i], 22);
-        if (font_reponse) break;
-    }
-    
-    // Si aucune police n'est trouvée, en créer une par défaut
     if (!font_titre || !font_question || !font_reponse) {
-        printf("Erreur chargement polices, utilisation de la police par defaut\n");
-        if (!font_titre) font_titre = TTF_OpenFont(NULL, 28);
-        if (!font_question) font_question = TTF_OpenFont(NULL, 24);
-        if (!font_reponse) font_reponse = TTF_OpenFont(NULL, 22);
-        
-        if (!font_titre || !font_question || !font_reponse) {
-            printf("Erreur: Impossible de charger les polices\n");
-            if (bg) SDL_DestroyTexture(bg);
-            return 0;
-        }
+        printf("Erreur: Impossible de charger les polices\n");
+        if (bg) SDL_DestroyTexture(bg);
+        return 0;
     }
     
     int reponse_choisie = -1;
@@ -150,7 +148,7 @@ int runEnigme(SDL_Renderer *renderer) {
     
     SDL_Event e;
     
-    // Définir les zones de clic pour les réponses
+    // Zones de clic pour les réponses
     SDL_Rect zones_reponses[4];
     for (int i = 0; i < MAX_REPONSES; i++) {
         zones_reponses[i].x = 150;
@@ -164,6 +162,7 @@ int runEnigme(SDL_Renderer *renderer) {
         time_t maintenant = time(NULL);
         jeu.temps_restant = 30 - (int)(maintenant - jeu.debut_temps);
         
+        // ✅ Temps écoulé → perte d'une vie
         if (jeu.temps_restant <= 0 && !afficher_message && !game_over && jeu.question_actuelle != -1) {
             jeu.vies--;
             afficher_message = 1;
@@ -203,9 +202,11 @@ int runEnigme(SDL_Renderer *renderer) {
                     for (int i = 0; i < MAX_REPONSES; i++) {
                         if (SDL_PointInRect(&p, &zones_reponses[i])) {
                             if (i == questions[jeu.question_actuelle].bonne_reponse) {
+                                // ✅ Bonne réponse → +100 points
                                 jeu.score += 100;
                                 message_correct = 1;
                             } else {
+                                // ✅ Mauvaise réponse → -1 vie
                                 jeu.vies--;
                                 message_correct = 0;
                                 if (jeu.vies <= 0) game_over = 1;
@@ -222,18 +223,17 @@ int runEnigme(SDL_Renderer *renderer) {
                 }
             }
             
-            // CORRECTION : Appuyer sur ESPACE pour QUITTER
+            // ESPACE pour quitter (fin de partie)
             if (e.type == SDL_KEYDOWN && (game_over || jeu.question_actuelle == -1)) {
                 if (e.key.keysym.sym == SDLK_SPACE) {
-                    quit = 1;  // Quitter le quiz
+                    quit = 1;
                 }
             }
         }
         
-        // Affichage
+        // ===== RENDU =====
         SDL_RenderClear(renderer);
         
-        // Fond
         if (bg) {
             SDL_Rect rect_fond = {0, 0, 1000, 700};
             SDL_RenderCopy(renderer, bg, NULL, &rect_fond);
@@ -248,12 +248,12 @@ int runEnigme(SDL_Renderer *renderer) {
         SDL_Rect bandeau_haut = {0, 0, 1000, 70};
         SDL_RenderFillRect(renderer, &bandeau_haut);
         
-        // Affichage du score
         SDL_Color blanc = {255, 255, 255, 255};
-        SDL_Color or = {255, 215, 0, 255};
-        SDL_Color rouge = {255, 80, 80, 255};
-        SDL_Color vert = {80, 255, 80, 255};
+        SDL_Color or    = {255, 215, 0,   255};
+        SDL_Color rouge = {255, 80,  80,  255};
+        SDL_Color vert  = {80,  255, 80,  255};
         
+        // Score
         char texte_score[50];
         sprintf(texte_score, "SCORE: %d", jeu.score);
         SDL_Surface *surf_score = TTF_RenderText_Blended(font_titre, texte_score, or);
@@ -265,7 +265,7 @@ int runEnigme(SDL_Renderer *renderer) {
             SDL_DestroyTexture(tex_score);
         }
         
-        // Affichage des vies
+        // Vies
         char texte_vies[50];
         sprintf(texte_vies, "VIES: %d", jeu.vies);
         SDL_Surface *surf_vies = TTF_RenderText_Blended(font_titre, texte_vies, rouge);
@@ -275,6 +275,21 @@ int runEnigme(SDL_Renderer *renderer) {
             SDL_RenderCopy(renderer, tex_vies, NULL, &rect_vies);
             SDL_FreeSurface(surf_vies);
             SDL_DestroyTexture(tex_vies);
+        }
+
+        // ✅ Compteur de questions (ex: "Q 3/10")
+        char texte_qnum[30];
+        int q_actuelle = 0;
+        for (int i = 0; i < nb_questions; i++) if (questions[i].deja_vu) q_actuelle++;
+        if (jeu.question_actuelle != -1) q_actuelle++; // question en cours
+        sprintf(texte_qnum, "Q %d/%d", q_actuelle, nb_questions);
+        SDL_Surface *surf_qnum = TTF_RenderText_Blended(font_titre, texte_qnum, blanc);
+        if (surf_qnum) {
+            SDL_Texture *tex_qnum = SDL_CreateTextureFromSurface(renderer, surf_qnum);
+            SDL_Rect rect_qnum = {430, 18, 120, 40};
+            SDL_RenderCopy(renderer, tex_qnum, NULL, &rect_qnum);
+            SDL_FreeSurface(surf_qnum);
+            SDL_DestroyTexture(tex_qnum);
         }
         
         // Barre de temps
@@ -301,7 +316,7 @@ int runEnigme(SDL_Renderer *renderer) {
             SDL_DestroyTexture(tex_temps);
         }
         
-        // Game Over
+        // ===== GAME OVER =====
         if (game_over) {
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 220);
@@ -317,18 +332,17 @@ int runEnigme(SDL_Renderer *renderer) {
                 SDL_DestroyTexture(tex_go);
             }
             
-            char score_final[100];
-            sprintf(score_final, "Score final: %d", jeu.score);
-            SDL_Surface *surf_score_final = TTF_RenderText_Blended(font_reponse, score_final, blanc);
-            if (surf_score_final) {
-                SDL_Texture *tex_score_final = SDL_CreateTextureFromSurface(renderer, surf_score_final);
-                SDL_Rect rect_score_final = {370, 370, 260, 40};
-                SDL_RenderCopy(renderer, tex_score_final, NULL, &rect_score_final);
-                SDL_FreeSurface(surf_score_final);
-                SDL_DestroyTexture(tex_score_final);
+            char score_txt[100];
+            sprintf(score_txt, "Score final: %d", jeu.score);
+            SDL_Surface *surf_sf = TTF_RenderText_Blended(font_reponse, score_txt, blanc);
+            if (surf_sf) {
+                SDL_Texture *tex_sf = SDL_CreateTextureFromSurface(renderer, surf_sf);
+                SDL_Rect rect_sf = {370, 370, 260, 40};
+                SDL_RenderCopy(renderer, tex_sf, NULL, &rect_sf);
+                SDL_FreeSurface(surf_sf);
+                SDL_DestroyTexture(tex_sf);
             }
             
-            // CORRECTION : Message "quitter"
             SDL_Surface *surf_msg = TTF_RenderText_Blended(font_reponse, "Appuyez sur ESPACE pour quitter", blanc);
             if (surf_msg) {
                 SDL_Texture *tex_msg = SDL_CreateTextureFromSurface(renderer, surf_msg);
@@ -338,34 +352,33 @@ int runEnigme(SDL_Renderer *renderer) {
                 SDL_DestroyTexture(tex_msg);
             }
         }
-        // Victoire
+        // ===== VICTOIRE (toutes les 10 questions répondues) =====
         else if (jeu.question_actuelle == -1) {
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 220);
             SDL_Rect overlay = {0, 0, 1000, 700};
             SDL_RenderFillRect(renderer, &overlay);
             
-            SDL_Surface *surf_victoire = TTF_RenderText_Blended(font_question, "VICTOIRE !", or);
-            if (surf_victoire) {
-                SDL_Texture *tex_victoire = SDL_CreateTextureFromSurface(renderer, surf_victoire);
-                SDL_Rect rect_victoire = {350, 280, 300, 70};
-                SDL_RenderCopy(renderer, tex_victoire, NULL, &rect_victoire);
-                SDL_FreeSurface(surf_victoire);
-                SDL_DestroyTexture(tex_victoire);
+            SDL_Surface *surf_v = TTF_RenderText_Blended(font_question, "VICTOIRE !", or);
+            if (surf_v) {
+                SDL_Texture *tex_v = SDL_CreateTextureFromSurface(renderer, surf_v);
+                SDL_Rect rect_v = {350, 280, 300, 70};
+                SDL_RenderCopy(renderer, tex_v, NULL, &rect_v);
+                SDL_FreeSurface(surf_v);
+                SDL_DestroyTexture(tex_v);
             }
             
-            char score_final[100];
-            sprintf(score_final, "Score final: %d", jeu.score);
-            SDL_Surface *surf_score_final = TTF_RenderText_Blended(font_reponse, score_final, blanc);
-            if (surf_score_final) {
-                SDL_Texture *tex_score_final = SDL_CreateTextureFromSurface(renderer, surf_score_final);
-                SDL_Rect rect_score_final = {370, 370, 260, 40};
-                SDL_RenderCopy(renderer, tex_score_final, NULL, &rect_score_final);
-                SDL_FreeSurface(surf_score_final);
-                SDL_DestroyTexture(tex_score_final);
+            char score_txt[100];
+            sprintf(score_txt, "Score final: %d / %d", jeu.score, nb_questions * 100);
+            SDL_Surface *surf_sf = TTF_RenderText_Blended(font_reponse, score_txt, blanc);
+            if (surf_sf) {
+                SDL_Texture *tex_sf = SDL_CreateTextureFromSurface(renderer, surf_sf);
+                SDL_Rect rect_sf = {320, 370, 360, 40};
+                SDL_RenderCopy(renderer, tex_sf, NULL, &rect_sf);
+                SDL_FreeSurface(surf_sf);
+                SDL_DestroyTexture(tex_sf);
             }
             
-            // CORRECTION : Message "quitter"
             SDL_Surface *surf_msg = TTF_RenderText_Blended(font_reponse, "Appuyez sur ESPACE pour quitter", blanc);
             if (surf_msg) {
                 SDL_Texture *tex_msg = SDL_CreateTextureFromSurface(renderer, surf_msg);
@@ -375,6 +388,7 @@ int runEnigme(SDL_Renderer *renderer) {
                 SDL_DestroyTexture(tex_msg);
             }
         }
+        // ===== MESSAGE FEEDBACK (bonne/mauvaise réponse) =====
         else if (afficher_message) {
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 200);
@@ -394,14 +408,13 @@ int runEnigme(SDL_Renderer *renderer) {
             
             if (SDL_GetTicks() - temps_message > 1500) afficher_message = 0;
         }
+        // ===== AFFICHAGE DE LA QUESTION =====
         else {
-            // Fond pour la question
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 180);
-            SDL_Rect fond_question = {50, 90, 900, 90};
-            SDL_RenderFillRect(renderer, &fond_question);
+            SDL_Rect fond_q = {50, 90, 900, 90};
+            SDL_RenderFillRect(renderer, &fond_q);
             
-            // Afficher la question
             SDL_Color jaune = {255, 255, 200, 255};
             SDL_Surface *surf_q = TTF_RenderText_Blended(font_question, questions[jeu.question_actuelle].question, jaune);
             if (surf_q) {
@@ -409,19 +422,14 @@ int runEnigme(SDL_Renderer *renderer) {
                 int w, h;
                 SDL_QueryTexture(tex_q, NULL, NULL, &w, &h);
                 int x = (1000 - w) / 2;
-                if (w > 900) {
-                    w = 900;
-                    x = 50;
-                }
+                if (w > 900) { w = 900; x = 50; }
                 SDL_Rect rect_q = {x, 105, w, h};
                 SDL_RenderCopy(renderer, tex_q, NULL, &rect_q);
                 SDL_FreeSurface(surf_q);
                 SDL_DestroyTexture(tex_q);
             }
             
-            // Afficher les réponses
             for (int i = 0; i < MAX_REPONSES; i++) {
-                // Fond de la réponse
                 if (reponse_choisie == i) {
                     SDL_SetRenderDrawColor(renderer, 0, 100, 200, 220);
                 } else {
@@ -429,23 +437,20 @@ int runEnigme(SDL_Renderer *renderer) {
                 }
                 SDL_RenderFillRect(renderer, &zones_reponses[i]);
                 
-                // Bordure
                 SDL_SetRenderDrawColor(renderer, 255, 200, 0, 220);
                 SDL_RenderDrawRect(renderer, &zones_reponses[i]);
                 
-                // Lettre de la réponse (A, B, C, D)
                 char lettre[3];
                 sprintf(lettre, "%c", 'A' + i);
-                SDL_Surface *surf_lettre = TTF_RenderText_Blended(font_reponse, lettre, or);
-                if (surf_lettre) {
-                    SDL_Texture *tex_lettre = SDL_CreateTextureFromSurface(renderer, surf_lettre);
-                    SDL_Rect rect_lettre = {zones_reponses[i].x + 20, zones_reponses[i].y + 18, 30, 30};
-                    SDL_RenderCopy(renderer, tex_lettre, NULL, &rect_lettre);
-                    SDL_FreeSurface(surf_lettre);
-                    SDL_DestroyTexture(tex_lettre);
+                SDL_Surface *surf_l = TTF_RenderText_Blended(font_reponse, lettre, or);
+                if (surf_l) {
+                    SDL_Texture *tex_l = SDL_CreateTextureFromSurface(renderer, surf_l);
+                    SDL_Rect rect_l = {zones_reponses[i].x + 20, zones_reponses[i].y + 18, 30, 30};
+                    SDL_RenderCopy(renderer, tex_l, NULL, &rect_l);
+                    SDL_FreeSurface(surf_l);
+                    SDL_DestroyTexture(tex_l);
                 }
                 
-                // Texte de la réponse
                 SDL_Surface *surf_r = TTF_RenderText_Blended(font_reponse, questions[jeu.question_actuelle].reponses[i], blanc);
                 if (surf_r) {
                     SDL_Texture *tex_r = SDL_CreateTextureFromSurface(renderer, surf_r);
@@ -454,8 +459,8 @@ int runEnigme(SDL_Renderer *renderer) {
                     int y = zones_reponses[i].y + (zones_reponses[i].h - h) / 2;
                     int x = zones_reponses[i].x + 65;
                     if (w > 600) w = 600;
-                    SDL_Rect rect_texte = {x, y, w, h};
-                    SDL_RenderCopy(renderer, tex_r, NULL, &rect_texte);
+                    SDL_Rect rect_r = {x, y, w, h};
+                    SDL_RenderCopy(renderer, tex_r, NULL, &rect_r);
                     SDL_FreeSurface(surf_r);
                     SDL_DestroyTexture(tex_r);
                 }
@@ -468,9 +473,10 @@ int runEnigme(SDL_Renderer *renderer) {
     
     // Nettoyage
     if (bg) SDL_DestroyTexture(bg);
-    if (font_titre) TTF_CloseFont(font_titre);
+    if (font_titre)    TTF_CloseFont(font_titre);
     if (font_question) TTF_CloseFont(font_question);
-    if (font_reponse) TTF_CloseFont(font_reponse);
+    if (font_reponse)  TTF_CloseFont(font_reponse);
     
-    return 1;
+    // ✅ Retourner le score final
+    return jeu.score;
 }
