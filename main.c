@@ -3,6 +3,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include "joueur.h"
 #include "menu.h"
 
@@ -27,8 +28,7 @@ int bgOffset2 = 0;
 int bgWidth = 0;
 int bgHeight = 0;
 
-// Function to remove background from selection images
-SDL_Texture* loadCleanTexture(SDL_Renderer *renderer, const char *path) {
+SDL_Texture* loadSelectionTexture(SDL_Renderer *renderer, const char *path) {
     SDL_Surface *surf = IMG_Load(path);
     if (!surf) {
         printf("Failed to load: %s\n", path);
@@ -41,27 +41,20 @@ SDL_Texture* loadCleanTexture(SDL_Renderer *renderer, const char *path) {
     if (!withAlpha) return NULL;
     
     SDL_LockSurface(withAlpha);
-    
     Uint32 *pixels = (Uint32*)withAlpha->pixels;
-    Uint8 bgR, bgG, bgB;
-    Uint32 bgPixel = pixels[0];
-    SDL_GetRGB(bgPixel, withAlpha->format, &bgR, &bgG, &bgB);
     
     for (int y = 0; y < withAlpha->h; y++) {
         for (int x = 0; x < withAlpha->w; x++) {
             Uint32 pixel = pixels[y * withAlpha->w + x];
-            Uint8 r, g, b;
-            SDL_GetRGB(pixel, withAlpha->format, &r, &g, &b);
-            
-            int diff = abs(r - bgR) + abs(g - bgG) + abs(b - bgB);
-            if (diff < 50) {
+            Uint8 r, g, b, a;
+            SDL_GetRGBA(pixel, withAlpha->format, &r, &g, &b, &a);
+            if (r > 200 && g > 200 && b > 200) {
                 pixels[y * withAlpha->w + x] = 0;
             }
         }
     }
     
     SDL_UnlockSurface(withAlpha);
-    
     SDL_SetSurfaceBlendMode(withAlpha, SDL_BLENDMODE_BLEND);
     SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, withAlpha);
     SDL_FreeSurface(withAlpha);
@@ -110,24 +103,68 @@ void renderCharacterSelection(SDL_Renderer *renderer) {
         SDL_RenderClear(renderer);
     }
     
-    SDL_Rect p1Rect = {150, 150, 200, 200};
-    SDL_Rect p1ButtonRect = {175, 380, 150, 60};
-    SDL_Rect p2Rect = {450, 150, 200, 200};
-    SDL_Rect p2ButtonRect = {475, 380, 150, 60};
-    
-    if (characterPreview1) {
-        SDL_RenderCopy(renderer, characterPreview1, NULL, &p1Rect);
-    } else {
-        SDL_SetRenderDrawColor(renderer, 255, 100, 100, 255);
-        SDL_RenderFillRect(renderer, &p1Rect);
+    // Circle 1 for Player 1 (center: 250, 200)
+    for (int w = 0; w < 200; w++) {
+        for (int h = 0; h < 200; h++) {
+            int dx = w - 100;
+            int dy = h - 100;
+            if (dx*dx + dy*dy <= 100*100) {
+                SDL_Rect pixel = {150 + w, 80 + h, 1, 1};
+                SDL_SetRenderDrawColor(renderer, 100, 100, 150, 100);
+                SDL_RenderFillRect(renderer, &pixel);
+            }
+        }
     }
     
-    if (characterPreview2) {
-        SDL_RenderCopy(renderer, characterPreview2, NULL, &p2Rect);
-    } else {
-        SDL_SetRenderDrawColor(renderer, 100, 100, 255, 255);
-        SDL_RenderFillRect(renderer, &p2Rect);
+    // Circle 2 for Player 2 (center: 550, 200)
+    for (int w = 0; w < 200; w++) {
+        for (int h = 0; h < 200; h++) {
+            int dx = w - 100;
+            int dy = h - 100;
+            if (dx*dx + dy*dy <= 100*100) {
+                SDL_Rect pixel = {450 + w, 80 + h, 1, 1};
+                SDL_SetRenderDrawColor(renderer, 100, 100, 150, 100);
+                SDL_RenderFillRect(renderer, &pixel);
+            }
+        }
     }
+    
+    // Draw circle borders
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    for (int angle = 0; angle < 360; angle++) {
+        int x1 = 250 + (int)(100 * cos(angle * 3.14159 / 180));
+        int y1 = 180 + (int)(100 * sin(angle * 3.14159 / 180));
+        int x2 = 250 + (int)(100 * cos((angle+1) * 3.14159 / 180));
+        int y2 = 180 + (int)(100 * sin((angle+1) * 3.14159 / 180));
+        SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+        
+        x1 = 550 + (int)(100 * cos(angle * 3.14159 / 180));
+        y1 = 180 + (int)(100 * sin(angle * 3.14159 / 180));
+        x2 = 550 + (int)(100 * cos((angle+1) * 3.14159 / 180));
+        y2 = 180 + (int)(100 * sin((angle+1) * 3.14159 / 180));
+        SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+    }
+    
+    // Character images inside circles
+    SDL_Rect p1Rect = {170, 100, 160, 160};
+    SDL_Rect p2Rect = {470, 100, 160, 160};
+    
+    if (characterPreview1) SDL_RenderCopy(renderer, characterPreview1, NULL, &p1Rect);
+    if (characterPreview2) SDL_RenderCopy(renderer, characterPreview2, NULL, &p2Rect);
+    
+    // BUTTONS DIRECTLY UNDER EACH CIRCLE (no text labels)
+    // Player 1 button (under first circle, centered)
+    SDL_Rect p1ButtonRect = {175, 300, 150, 50};
+    // Player 2 button (under second circle, centered)
+    SDL_Rect p2ButtonRect = {475, 300, 150, 50};
+    
+    // Draw square buttons
+    SDL_SetRenderDrawColor(renderer, 50, 50, 100, 200);
+    SDL_RenderFillRect(renderer, &p1ButtonRect);
+    SDL_RenderFillRect(renderer, &p2ButtonRect);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderDrawRect(renderer, &p1ButtonRect);
+    SDL_RenderDrawRect(renderer, &p2ButtonRect);
     
     if (button1) SDL_RenderCopy(renderer, button1, NULL, &p1ButtonRect);
     if (button2) SDL_RenderCopy(renderer, button2, NULL, &p2ButtonRect);
@@ -136,8 +173,11 @@ void renderCharacterSelection(SDL_Renderer *renderer) {
 int handleCharacterSelection(SDL_Event e) {
     if (e.type == SDL_MOUSEBUTTONDOWN) {
         int x = e.button.x, y = e.button.y;
-        if (x >= 175 && x <= 325 && y >= 380 && y <= 440) return 1;
-        if (x >= 475 && x <= 625 && y >= 380 && y <= 440) return 2;
+        
+        // Player 1 button (175, 300, 150, 50)
+        if (x >= 175 && x <= 325 && y >= 300 && y <= 350) return 1;
+        // Player 2 button (475, 300, 150, 50)
+        if (x >= 475 && x <= 625 && y >= 300 && y <= 350) return 2;
     }
     return 0;
 }
@@ -156,10 +196,9 @@ int main() {
     
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
 
-    font = TTF_OpenFont("/usr/share/fonts/truetype/ubuntu/Ubuntu-M.ttf", 24);
+    font = TTF_OpenFont("/usr/share/fonts/truetype/ubuntu/Ubuntu-M.ttf", 20);
     if (!font) printf("Font not found\n");
 
-    // Load background
     SDL_Surface *surf;
     surf = IMG_Load("images/game_background.png");
     if (surf) {
@@ -167,7 +206,6 @@ int main() {
         bgHeight = surf->h;
         gameBackground = SDL_CreateTextureFromSurface(renderer, surf);
         
-        // Create flipped version
         gameBackgroundFlipped = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, bgWidth, bgHeight);
         SDL_SetRenderTarget(renderer, gameBackgroundFlipped);
         SDL_RenderCopyEx(renderer, gameBackground, NULL, NULL, 0, NULL, SDL_FLIP_HORIZONTAL);
@@ -177,16 +215,14 @@ int main() {
         printf("Background loaded: %dx%d\n", bgWidth, bgHeight);
     }
     
-    // Load selection screen images with background removal
     surf = IMG_Load("images/mode_selection.png");
     if (surf) { modeSelectionBg = SDL_CreateTextureFromSurface(renderer, surf); SDL_FreeSurface(surf); }
     
     surf = IMG_Load("images/background_playerselection.png");
     if (surf) { characterSelectionBg = SDL_CreateTextureFromSurface(renderer, surf); SDL_FreeSurface(surf); }
     
-    // Load character images with background removal
-    characterPreview1 = loadCleanTexture(renderer, "images/player1.png");
-    characterPreview2 = loadCleanTexture(renderer, "images/player2.png");
+    characterPreview1 = loadSelectionTexture(renderer, "images/player1.png");
+    characterPreview2 = loadSelectionTexture(renderer, "images/player2.png");
     
     surf = IMG_Load("images/player1_button.png");
     if (surf) { button1 = SDL_CreateTextureFromSurface(renderer, surf); SDL_FreeSurface(surf); }
@@ -212,6 +248,7 @@ int main() {
     printf("\n========================================\n");
     printf("   DREAMCORE - LUCID DREAMS\n");
     printf("========================================\n");
+    printf("Controls:\n");
     printf("Player 1: Arrow Keys, Right Shift (run), Up (jump), . (attack)\n");
     printf("Player 2: WASD, Left Shift (run), W (jump), , (attack)\n");
     printf("Press ESC to return to menu\n");
@@ -225,34 +262,25 @@ int main() {
         if (gameRunning) {
             if (isMultiplayer) {
                 if (player1.isMoving) {
-                    int speed = player1.isRunning ? 5 : 3;
-                    if (player1.isFacingRight) {
-                        bgOffset1 += speed;
-                    } else {
-                        bgOffset1 -= speed;
-                    }
+                    int speed = player1.isRunning ? 8 : 4;
+                    if (player1.isFacingRight) bgOffset1 += speed;
+                    else bgOffset1 -= speed;
                 }
                 while (bgOffset1 >= bgWidth * 2) bgOffset1 -= bgWidth * 2;
                 while (bgOffset1 < 0) bgOffset1 += bgWidth * 2;
                 
                 if (player2.isMoving) {
-                    int speed = player2.isRunning ? 5 : 3;
-                    if (player2.isFacingRight) {
-                        bgOffset2 += speed;
-                    } else {
-                        bgOffset2 -= speed;
-                    }
+                    int speed = player2.isRunning ? 8 : 4;
+                    if (player2.isFacingRight) bgOffset2 += speed;
+                    else bgOffset2 -= speed;
                 }
                 while (bgOffset2 >= bgWidth * 2) bgOffset2 -= bgWidth * 2;
                 while (bgOffset2 < 0) bgOffset2 += bgWidth * 2;
             } else {
                 if (player1.isMoving) {
-                    int speed = player1.isRunning ? 5 : 3;
-                    if (player1.isFacingRight) {
-                        bgOffset1 += speed;
-                    } else {
-                        bgOffset1 -= speed;
-                    }
+                    int speed = player1.isRunning ? 8 : 4;
+                    if (player1.isFacingRight) bgOffset1 += speed;
+                    else bgOffset1 -= speed;
                 }
                 while (bgOffset1 >= bgWidth * 2) bgOffset1 -= bgWidth * 2;
                 while (bgOffset1 < 0) bgOffset1 += bgWidth * 2;
@@ -279,20 +307,26 @@ int main() {
                     gameRunning = 1;
                     isMultiplayer = 1;
                     gameStartTime = SDL_GetTicks();
-                    bgOffset1 = 0;
-                    bgOffset2 = 0;
+                    bgOffset1 = 0; bgOffset2 = 0;
                     initJoueur(&player1, renderer, 1, 150, 500);
                     initJoueur(&player2, renderer, 2, 600, 500);
                 }
             }
             else if (inCharacterSelect) {
                 int selected = handleCharacterSelection(e);
-                if (selected == 1 || selected == 2) {
+                if (selected == 1) {
                     inCharacterSelect = 0;
                     gameRunning = 1;
                     gameStartTime = SDL_GetTicks();
                     bgOffset1 = 0;
-                    initJoueur(&player1, renderer, selected, 400, 500);
+                    initJoueur(&player1, renderer, 1, 400, 500);
+                }
+                else if (selected == 2) {
+                    inCharacterSelect = 0;
+                    gameRunning = 1;
+                    gameStartTime = SDL_GetTicks();
+                    bgOffset1 = 0;
+                    initJoueur(&player1, renderer, 2, 400, 500);
                 }
             }
             else if (gameRunning) {
@@ -342,21 +376,16 @@ int main() {
             SDL_Color green = {100, 255, 100, 255};
             
             if (isMultiplayer) {
-                // LEFT SIDE - Player 1 Background
                 if (gameBackground) {
                     int offset = bgOffset1;
                     int segment = (offset / bgWidth) % 2;
                     int localOffset = offset % bgWidth;
-                    
                     SDL_Texture *currentTex = (segment == 0) ? gameBackground : gameBackgroundFlipped;
-                    
                     int drawWidth = bgWidth - localOffset;
                     if (drawWidth > 400) drawWidth = 400;
-                    
                     SDL_Rect src1 = {localOffset, 0, drawWidth, bgHeight};
                     SDL_Rect dst1 = {0, 0, drawWidth, 600};
                     SDL_RenderCopy(renderer, currentTex, &src1, &dst1);
-                    
                     if (drawWidth < 400) {
                         int remaining = 400 - drawWidth;
                         int nextSegment = (segment + 1) % 2;
@@ -367,21 +396,16 @@ int main() {
                     }
                 }
                 
-                // RIGHT SIDE - Player 2 Background
                 if (gameBackground) {
                     int offset = bgOffset2;
                     int segment = (offset / bgWidth) % 2;
                     int localOffset = offset % bgWidth;
-                    
                     SDL_Texture *currentTex = (segment == 0) ? gameBackground : gameBackgroundFlipped;
-                    
                     int drawWidth = bgWidth - localOffset;
                     if (drawWidth > 400) drawWidth = 400;
-                    
                     SDL_Rect src3 = {localOffset, 0, drawWidth, bgHeight};
                     SDL_Rect dst3 = {400, 0, drawWidth, 600};
                     SDL_RenderCopy(renderer, currentTex, &src3, &dst3);
-                    
                     if (drawWidth < 400) {
                         int remaining = 400 - drawWidth;
                         int nextSegment = (segment + 1) % 2;
@@ -392,8 +416,6 @@ int main() {
                     }
                 }
                 
-                // Draw dividing line
-                SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
                 for (int i = 0; i < 5; i++) {
                     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 50 - i * 10);
                     SDL_RenderDrawLine(renderer, 400 - i, 0, 400 - i, 600);
@@ -437,21 +459,16 @@ int main() {
                        player1.score, player1.lives, player2.score, player2.lives, minutes, seconds);
                 fflush(stdout);
             } else {
-                // SINGLEPLAYER
                 if (gameBackground) {
                     int offset = bgOffset1;
                     int segment = (offset / bgWidth) % 2;
                     int localOffset = offset % bgWidth;
-                    
                     SDL_Texture *currentTex = (segment == 0) ? gameBackground : gameBackgroundFlipped;
-                    
                     int drawWidth = bgWidth - localOffset;
                     if (drawWidth > 800) drawWidth = 800;
-                    
                     SDL_Rect src1 = {localOffset, 0, drawWidth, bgHeight};
                     SDL_Rect dst1 = {0, 0, drawWidth, 600};
                     SDL_RenderCopy(renderer, currentTex, &src1, &dst1);
-                    
                     if (drawWidth < 800) {
                         int remaining = 800 - drawWidth;
                         int nextSegment = (segment + 1) % 2;
