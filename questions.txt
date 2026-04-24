@@ -3,19 +3,19 @@ Dom Cobb
 Arthur
 Saito
 Mal
-0
+
 Quel est l objet que Cobb utilise comme totem ?
 Une toupie
-Un dé
+Un de
 Un échec
 Une bague
 0
 Combien de niveaux de reve y a t il dans le film Inception ?
-3
-4
-5
-6
-1
+trois
+quatre
+cinq
+six
+un
 Qui est l'architecte dans l équipe d Inception ?
 Ariadne
 Arthur
@@ -35,11 +35,11 @@ Vous recommencez
 Rien
 0
 Combien de temps avez vous pour repondre a chaque question ?
-30 secondes
-10 secondes
-60 secondes
-20 secondes
-0
+trente secondes
+dix secondes
+ soixante secondes
+vingt secondes
+
 Quelle touche permet de quitter le jeu ?
 Echap
 Entree
