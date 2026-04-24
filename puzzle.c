@@ -1,281 +1,227 @@
 #include "puzzle.h"
 
-/* ===== POSITIONS CIBLES ===== */
+int positionOK(Piece *p, int dossier) {
+    int x = 300, y = 20;
+    if (dossier == 1) { x = 293; y = 363; }
+    if (dossier == 2) { x = 440; y = 343; }
+    if (dossier == 3) { x = 301; y = 15; }
+    if (dossier == 4) { x = 480; y = 153; }
+    if (dossier == 5) { x = 298; y = 17; }
 
-PositionCible obtenirPositionCible(int numero_dossier) {
-    PositionCible pos;
-    switch (numero_dossier) {
-        case 1: pos.x = 293; pos.y = 363; break;
-        case 2: pos.x = 440; pos.y = 343; break;
-        case 3: pos.x = 301; pos.y = 15;  break;
-        case 4: pos.x = 480; pos.y = 153; break;
-        case 5: pos.x = 298; pos.y = 17;  break;
-        default: pos.x = 300; pos.y = 20; break;
-    }
-    return pos;
+    return abs(p->rect.x - x) < SEUIL_CIBLE &&
+           abs(p->rect.y - y) < SEUIL_CIBLE;
 }
 
-/* ===== FOND ===== */
+void initJeu(Jeu *jeu, SDL_Renderer *r, TTF_Font *font) {
+    SDL_Surface *s = IMG_Load("bg&police/background.jpg");
+    jeu->fond.texture = SDL_CreateTextureFromSurface(r, s);
+    jeu->fond.rect = (SDL_Rect){0,0,LARGEUR_FENETRE,HAUTEUR_FENETRE};
+    SDL_FreeSurface(s);
 
-void initialiserFond(Fond *fond, SDL_Renderer *renderer) {
-    SDL_Surface *surface = IMG_Load("background.jpg");
-    if (!surface) {
-        fprintf(stderr, "Erreur chargement fond: %s\n", IMG_GetError());
-        exit(EXIT_FAILURE);
-    }
-    fond->texture = SDL_CreateTextureFromSurface(renderer, surface);
-    SDL_FreeSurface(surface);
-    if (!fond->texture) {
-        fprintf(stderr, "Erreur texture fond: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
-    fond->rect = (SDL_Rect){0, 0, LARGEUR_FENETRE, HAUTEUR_FENETRE};
-}
+    srand(time(NULL));
+    jeu->dossier = rand()%5 + 1;
 
-/* ===== PIÈCES ===== */
-
-void initialiserPuzzle(PiecePuzzle pieces[], int numero_dossier,
-                       SDL_Renderer *renderer) {
-    char chemin[128];   
-    for (int i = 0; i < NB_PIECES; i++) {
-        snprintf(chemin, sizeof(chemin),
-                 "puzzlerand/%d/puzzle%d.png", numero_dossier, i + 1);
-        SDL_Surface *surface = IMG_Load(chemin);
-        if (!surface) {
-            fprintf(stderr, "Erreur chargement pièce %d: %s\n",
-                    i + 1, IMG_GetError());
-            exit(EXIT_FAILURE);
-        }
-        pieces[i].texture = SDL_CreateTextureFromSurface(renderer, surface);
-        pieces[i].rect.w  = surface->w;
-        pieces[i].rect.h  = surface->h;
-        pieces[i].rect.x  = 0;   
-        pieces[i].rect.y  = 0;
-        SDL_FreeSurface(surface);
-
-        if (!pieces[i].texture) {
-            fprintf(stderr, "Erreur texture pièce %d: %s\n",
-                    i + 1, SDL_GetError());
-            exit(EXIT_FAILURE);
-        }
-
-        pieces[i].est_glisse        = 0;
-        pieces[i].decalage_glisse_x = 0;
-        pieces[i].decalage_glisse_y = 0;
-        pieces[i].visible           = 1;
-        pieces[i].secoue            = 0;
-        pieces[i].debut_secousse    = 0;
-        pieces[i].rect_originale    = pieces[i].rect;
-    }
-}
-
-void libererPieces(PiecePuzzle pieces[], int nombre) {
-    for (int i = 0; i < nombre; i++) {
-        if (pieces[i].texture)
-            SDL_DestroyTexture(pieces[i].texture);
-    }
-}
-
-int sourisSurPiece(PiecePuzzle *piece, int souris_x, int souris_y) {
-    return piece->visible &&
-           souris_x >= piece->rect.x &&
-           souris_x <= piece->rect.x + piece->rect.w &&
-           souris_y >= piece->rect.y &&
-           souris_y <= piece->rect.y + piece->rect.h;
-}
-
-int estSurPositionCible(PiecePuzzle *piece, int numero_dossier) {
-    PositionCible cible = obtenirPositionCible(numero_dossier);
-    return (abs(piece->rect.x - cible.x) < SEUIL_CIBLE) &&
-           (abs(piece->rect.y - cible.y) < SEUIL_CIBLE);
-}
-
-void ajusterPositionCible(PiecePuzzle *piece, int numero_dossier) {
-    PositionCible cible = obtenirPositionCible(numero_dossier);
-    piece->rect.x = cible.x;
-    piece->rect.y = cible.y;
-}
-
-void demarrerSecousse(PiecePuzzle *piece) {
-    piece->secoue         = 1;
-    piece->debut_secousse = SDL_GetTicks();
-    piece->rect_originale = piece->rect;
-}
-
-void mettreAJourSecousse(PiecePuzzle *piece) {
-    if (!piece->secoue) return;
-
-    Uint32 actuel = SDL_GetTicks();
-    if (actuel - piece->debut_secousse > DUREE_SECOUSSE) {
-        piece->secoue = 0;
-        piece->rect   = piece->rect_originale;
-        return;
+    for(int i=0;i<NB_PIECES;i++){
+        char path[128];
+        sprintf(path,"puzzlerand/%d/puzzle%d.png",jeu->dossier,i+1);
+        s = IMG_Load(path);
+        jeu->pieces[i].texture = SDL_CreateTextureFromSurface(r,s);
+        jeu->pieces[i].rect = (SDL_Rect){0,0,s->w,s->h};
+        jeu->pieces[i].original = jeu->pieces[i].rect;
+        jeu->pieces[i].visible = 1;
+        jeu->pieces[i].secoue = 0;
+        SDL_FreeSurface(s);
     }
 
-    int decalage  = (rand() % 10) - 5;
-    piece->rect.x = piece->rect_originale.x + decalage;
-    decalage      = (rand() % 10) - 5;
-    piece->rect.y = piece->rect_originale.y + decalage;
-}
+    jeu->pieces[0].rect.x=300; jeu->pieces[0].rect.y=20;
+    jeu->pieces[1].rect.x=200; jeu->pieces[1].rect.y=550;
+    jeu->pieces[2].rect.x=500; jeu->pieces[2].rect.y=550;
+    jeu->pieces[3].rect.x=900; jeu->pieces[3].rect.y=550;
 
-
-/* ===== CHRONOMÈTRE ===== */
-
-void initialiserChronometre(Chronometre *chrono, SDL_Renderer *renderer) {
-    char chemin[32];
-    for (int i = 0; i < 11; i++) {
-        snprintf(chemin, sizeof(chemin), "%d.png", 10 - i);
-        SDL_Surface *surface = IMG_Load(chemin);
-        if (!surface) {
-            fprintf(stderr, "Erreur chargement image chrono %d: %s\n",
-                    i, IMG_GetError());
-            exit(EXIT_FAILURE);
-        }
-        chrono->textures[i] = SDL_CreateTextureFromSurface(renderer, surface);
-        SDL_FreeSurface(surface);
-        if (!chrono->textures[i]) {
-            fprintf(stderr, "Erreur texture chrono %d: %s\n",
-                    i, SDL_GetError());
-            exit(EXIT_FAILURE);
-        }
-    }
-    int w, h;
-    SDL_QueryTexture(chrono->textures[0], NULL, NULL, &w, &h);
-    chrono->rect                = (SDL_Rect){1000, 20, w, h};
-    chrono->rect_originale      = chrono->rect;
-    chrono->texture_actuelle    = 0;
-    chrono->temps_debut         = SDL_GetTicks();
-    chrono->derniere_mise_a_jour = chrono->temps_debut;
-    chrono->temps_ecoule        = 0;
-    chrono->chrono_arrete       = 0;
-    chrono->secondes_restantes  = 10;
-    chrono->en_alerte           = 0;
-    chrono->dernier_clignotement = 0;
-}
-
-void mettreAJourChronometre(Chronometre *chrono) {
-    if (chrono->chrono_arrete || chrono->temps_ecoule) return;
-
-    Uint32 temps_actuel = SDL_GetTicks();
-
-    if (temps_actuel - chrono->derniere_mise_a_jour >= 1000) {
-        chrono->secondes_restantes--;
-        chrono->texture_actuelle = 10 - chrono->secondes_restantes;
-
-        if (chrono->secondes_restantes <= ALERTE_SECONDS &&
-            chrono->secondes_restantes > 0) {
-            chrono->en_alerte = 1;
-        } else if (chrono->secondes_restantes > ALERTE_SECONDS) {
-            chrono->en_alerte = 0;
-            chrono->rect      = chrono->rect_originale;
-        }
-
-        if (chrono->secondes_restantes <= 0) {
-            chrono->secondes_restantes = 0;        
-            chrono->temps_ecoule       = 1;
-            chrono->texture_actuelle   = 10;
-            chrono->en_alerte          = 0;
-            chrono->rect               = chrono->rect_originale;
-        }
-
-        chrono->derniere_mise_a_jour = temps_actuel;
+    for(int i=0;i<11;i++){
+        char c[16];
+        sprintf(c,"chrono/%d.png",10-i);
+        s = IMG_Load(c);
+        jeu->chrono.textures[i]=SDL_CreateTextureFromSurface(r,s);
+        SDL_FreeSurface(s);
     }
 
-    if (chrono->en_alerte) {
-        int decalage   = (rand() % 7) - 3;
-        chrono->rect.x = chrono->rect_originale.x + decalage;
-        decalage       = (rand() % 7) - 3;
-        chrono->rect.y = chrono->rect_originale.y + decalage;
+    int w,h;
+    SDL_QueryTexture(jeu->chrono.textures[0],NULL,NULL,&w,&h);
+    jeu->chrono.rect=(SDL_Rect){1000,20,w,h};
+    jeu->chrono.original=jeu->chrono.rect;
+    jeu->chrono.index=0;
+    jeu->chrono.secondes=10;
+    jeu->chrono.fini=0;
+    jeu->chrono.alerte=0;
+    jeu->chrono.dernier=SDL_GetTicks();
 
-        if (temps_actuel - chrono->dernier_clignotement > 500) {
-            chrono->dernier_clignotement = temps_actuel;
-        }
-    }
+    SDL_Color c1={255,215,0,255};
+    SDL_Color c2={255,0,0,255};
+
+    s = TTF_RenderText_Solid(font,"GOOD!",c1);
+    jeu->victoire.texture=SDL_CreateTextureFromSurface(r,s);
+    jeu->victoire.rect=(SDL_Rect){500,500,s->w,s->h};
+    jeu->victoire.visible=0;
+    jeu->victoire.zoom=0.1f;
+    SDL_FreeSurface(s);
+
+    s = TTF_RenderText_Solid(font,"TIME OVER!",c1);
+    jeu->temps.texture=SDL_CreateTextureFromSurface(r,s);
+    jeu->temps.rect=(SDL_Rect){500,500,s->w,s->h};
+    jeu->temps.visible=0;
+    jeu->temps.zoom=0.1f;
+    SDL_FreeSurface(s);
+
+    s = TTF_RenderText_Solid(font,"ERREUR -2s",c2);
+    jeu->erreur.texture=SDL_CreateTextureFromSurface(r,s);
+    jeu->erreur.rect=(SDL_Rect){500,650,s->w,s->h};
+    jeu->erreur.visible=0;
+    SDL_FreeSurface(s);
+
+    jeu->active=NULL;
+    jeu->fini=0;
 }
 
-void libererChronometre(Chronometre *chrono) {
-    for (int i = 0; i < 11; i++) {
-        if (chrono->textures[i])
-            SDL_DestroyTexture(chrono->textures[i]);
-    }
-}
+void updateJeu(Jeu *jeu) {
 
-/* ===== MESSAGES ===== */
+    if(!jeu->chrono.fini && !jeu->fini){
+        if(SDL_GetTicks() - jeu->chrono.dernier > 1000){
+            jeu->chrono.secondes--;
+            jeu->chrono.index=10-jeu->chrono.secondes;
+            jeu->chrono.dernier=SDL_GetTicks();
 
-void initialiserMessage(Message *msg, TTF_Font *police, SDL_Color couleur,
-                        const char *texte, SDL_Renderer *renderer) {
-    SDL_Surface *surface = TTF_RenderText_Solid(police, texte, couleur);
-    if (!surface) {
-        fprintf(stderr, "Erreur surface texte: %s\n", TTF_GetError());
-        exit(EXIT_FAILURE);
-    }
-    msg->texture = SDL_CreateTextureFromSurface(renderer, surface);
-    msg->rect    = (SDL_Rect){400, 550, surface->w, surface->h};
-    SDL_FreeSurface(surface);
+            if(jeu->chrono.secondes<=3 && jeu->chrono.secondes>0)
+                jeu->chrono.alerte=1;
+            else
+                jeu->chrono.alerte=0;
 
-    if (!msg->texture) {
-        fprintf(stderr, "Erreur texture message: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
-
-    msg->visible         = 0;
-    msg->temps_affichage = 0;
-    msg->zoom            = 0.1f;
-    msg->etat_zoom       = 0;
-}
-
-void libererMessage(Message *msg) {
-    if (msg->texture)
-        SDL_DestroyTexture(msg->texture);
-}
-
-void updateZoomMessage(Message *msg) {
-    if (!msg->visible) return;
-
-    switch (msg->etat_zoom) {
-        case 0:
-            msg->etat_zoom       = 1;
-            msg->temps_affichage = SDL_GetTicks();
-            break;
-        case 1:
-            msg->zoom += 0.05f;
-            if (msg->zoom >= 1.0f) {
-                msg->zoom      = 1.0f;
-                msg->etat_zoom = 2;
+            if(jeu->chrono.secondes<=0){
+                jeu->chrono.secondes=0;
+                jeu->chrono.fini=1;
+                jeu->temps.visible=1;
+                jeu->fini=1;
             }
-            break;
-        case 2:
-        default:
-            break;
+        }
+    }
+
+    if(jeu->chrono.alerte){
+        int dx=(rand()%7)-3;
+        int dy=(rand()%7)-3;
+        jeu->chrono.rect.x=jeu->chrono.original.x+dx;
+        jeu->chrono.rect.y=jeu->chrono.original.y+dy;
+    } else {
+        jeu->chrono.rect=jeu->chrono.original;
+    }
+
+    for(int i=0;i<NB_PIECES;i++){
+        if(jeu->pieces[i].secoue){
+            if(SDL_GetTicks() - jeu->pieces[i].debut > 500){
+                jeu->pieces[i].secoue=0;
+                jeu->pieces[i].rect=jeu->pieces[i].original;
+            } else {
+                int dx=(rand()%10)-5;
+                int dy=(rand()%10)-5;
+                jeu->pieces[i].rect.x=jeu->pieces[i].original.x+dx;
+                jeu->pieces[i].rect.y=jeu->pieces[i].original.y+dy;
+            }
+        }
+    }
+
+    if(jeu->victoire.visible && jeu->victoire.zoom<1.0f)
+        jeu->victoire.zoom+=0.05f;
+
+    if(jeu->temps.visible && jeu->temps.zoom<1.0f)
+        jeu->temps.zoom+=0.05f;
+
+    if(jeu->erreur.visible){
+        if(SDL_GetTicks() - jeu->tempsErreur > 1000)
+            jeu->erreur.visible=0;
     }
 }
 
-/* ===== RENDU UTILITAIRES ===== */
+void renderJeu(Jeu *jeu, SDL_Renderer *r) {
+    SDL_RenderClear(r);
+    SDL_RenderCopy(r,jeu->fond.texture,NULL,&jeu->fond.rect);
 
-void appliquerEffetAlerte(SDL_Texture *texture, SDL_Renderer *renderer) {
-    (void)renderer;
-    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureColorMod(texture, 255, 100, 100);
+    if(jeu->chrono.alerte && SDL_GetTicks()%200<100)
+        SDL_SetTextureColorMod(jeu->chrono.textures[jeu->chrono.index],255,100,100);
+
+    SDL_RenderCopy(r,
+        jeu->chrono.textures[jeu->chrono.index],
+        NULL,&jeu->chrono.rect);
+
+    SDL_SetTextureColorMod(jeu->chrono.textures[jeu->chrono.index],255,255,255);
+
+    for(int i=0;i<NB_PIECES;i++)
+        if(jeu->pieces[i].visible)
+            SDL_RenderCopy(r,jeu->pieces[i].texture,NULL,&jeu->pieces[i].rect);
+
+    if(jeu->victoire.visible){
+        int w=jeu->victoire.rect.w*jeu->victoire.zoom;
+        int h=jeu->victoire.rect.h*jeu->victoire.zoom;
+        SDL_Rect d={600-w/2,550-h/2,w,h};
+        SDL_RenderCopy(r,jeu->victoire.texture,NULL,&d);
+    }
+
+    if(jeu->temps.visible){
+        int w=jeu->temps.rect.w*jeu->temps.zoom;
+        int h=jeu->temps.rect.h*jeu->temps.zoom;
+        SDL_Rect d={600-w/2,550-h/2,w,h};
+        SDL_RenderCopy(r,jeu->temps.texture,NULL,&d);
+    }
+
+    if(jeu->erreur.visible)
+        SDL_RenderCopy(r,jeu->erreur.texture,NULL,&jeu->erreur.rect);
+
+    SDL_RenderPresent(r);
 }
 
-void renderTexture(SDL_Texture *texture, SDL_Renderer *renderer,
-                   int x, int y, int w, int h) {
-    SDL_Rect dest = {x, y, w, h};
-    SDL_RenderCopy(renderer, texture, NULL, &dest);
+void handleEvents(Jeu *jeu, SDL_Event *e) {
+    if(e->type==SDL_MOUSEBUTTONDOWN){
+        for(int i=1;i<NB_PIECES;i++){
+            if(e->button.x>=jeu->pieces[i].rect.x &&
+               e->button.x<=jeu->pieces[i].rect.x+jeu->pieces[i].rect.w &&
+               e->button.y>=jeu->pieces[i].rect.y &&
+               e->button.y<=jeu->pieces[i].rect.y+jeu->pieces[i].rect.h){
+                jeu->active=&jeu->pieces[i];
+            }
+        }
+    }
+
+    if(e->type==SDL_MOUSEBUTTONUP && jeu->active){
+        if(jeu->active==&jeu->pieces[1] &&
+           positionOK(jeu->active,jeu->dossier)){
+            jeu->victoire.visible=1;
+            jeu->chrono.fini=1;
+            jeu->fini=1;
+        } else {
+            jeu->active->secoue=1;
+            jeu->active->debut=SDL_GetTicks();
+            jeu->erreur.visible=1;
+            jeu->tempsErreur=SDL_GetTicks();
+            if(jeu->chrono.secondes>PENALITE_TEMPS)
+                jeu->chrono.secondes-=PENALITE_TEMPS;
+        }
+        jeu->active=NULL;
+    }
+
+    if(e->type==SDL_MOUSEMOTION && jeu->active){
+        jeu->active->rect.x=e->motion.x;
+        jeu->active->rect.y=e->motion.y;
+    }
 }
 
-void renderTextureScaled(SDL_Texture *texture, SDL_Renderer *renderer,
-                         int x, int y, float scale) {
-    int w, h;
-    SDL_QueryTexture(texture, NULL, NULL, &w, &h);
-    int new_w = (int)(w * scale);
-    int new_h = (int)(h * scale);
-    SDL_Rect dest = {
-        x - new_w / 2,   
-        y - new_h / 2,
-        new_w,
-        new_h
-    };
-    SDL_RenderCopy(renderer, texture, NULL, &dest);
-}
+void cleanJeu(Jeu *jeu) {
+    SDL_DestroyTexture(jeu->fond.texture);
 
+    for(int i=0;i<NB_PIECES;i++)
+        SDL_DestroyTexture(jeu->pieces[i].texture);
+
+    for(int i=0;i<11;i++)
+        SDL_DestroyTexture(jeu->chrono.textures[i]);
+
+    SDL_DestroyTexture(jeu->victoire.texture);
+    SDL_DestroyTexture(jeu->temps.texture);
+    SDL_DestroyTexture(jeu->erreur.texture);
+}
