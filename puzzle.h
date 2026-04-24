@@ -6,93 +6,64 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <time.h>
 
-/* ===== CONSTANTES ===== */
-#define SEUIL_CIBLE     30
-#define NB_PIECES       4
-#define DUREE_CHRONO    10000
-#define DUREE_SECOUSSE  500
-#define PENALITE_TEMPS  2
-#define ALERTE_SECONDS  3
+#define NB_PIECES 4
 #define LARGEUR_FENETRE 1200
 #define HAUTEUR_FENETRE 800
-
-/* ===== STRUCTURES ===== */
+#define SEUIL_CIBLE 30
+#define PENALITE_TEMPS 2
 
 typedef struct {
     SDL_Texture *texture;
-    SDL_Rect     rect;
+    SDL_Rect rect;
 } Fond;
 
 typedef struct {
     SDL_Texture *texture;
-    SDL_Rect     rect;
-    SDL_Rect     rect_originale;      
-    int          est_glisse;
-    int          decalage_glisse_x;
-    int          decalage_glisse_y;
-    int          visible;
-    int          secoue;
-    Uint32       debut_secousse;
-} PiecePuzzle;
+    SDL_Rect rect;
+    SDL_Rect original;
+    int visible;
+    int secoue;
+    Uint32 debut;
+} Piece;
 
 typedef struct {
     SDL_Texture *textures[11];
-    SDL_Rect     rect;
-    SDL_Rect     rect_originale;
-    int          texture_actuelle;
-    Uint32       temps_debut;
-    Uint32       derniere_mise_a_jour;
-    int          temps_ecoule;
-    int          chrono_arrete;
-    int          secondes_restantes;
-    int          en_alerte;
-    Uint32       dernier_clignotement;
-} Chronometre;
+    SDL_Rect rect;
+    SDL_Rect original;
+    int index;
+    int secondes;
+    int fini;
+    int alerte;
+    Uint32 dernier;
+} Chrono;
 
 typedef struct {
     SDL_Texture *texture;
-    SDL_Rect     rect;
-    int          visible;
-    Uint32       temps_affichage;
-    float        zoom;
-    int          etat_zoom;
+    SDL_Rect rect;
+    float zoom;
+    int visible;
 } Message;
 
 typedef struct {
-    int x;
-    int y;
-} PositionCible;
+    Fond fond;
+    Piece pieces[NB_PIECES];
+    Chrono chrono;
+    Message victoire;
+    Message erreur;
+    Message temps;
+    int dossier;
+    int fini;
+    Piece *active;
+    Uint32 tempsErreur;
+} Jeu;
 
-/* ===== PROTOTYPES ===== */
+void initJeu(Jeu *jeu, SDL_Renderer *renderer, TTF_Font *font);
+void updateJeu(Jeu *jeu);
+void renderJeu(Jeu *jeu, SDL_Renderer *renderer);
+void handleEvents(Jeu *jeu, SDL_Event *e);
+void cleanJeu(Jeu *jeu);
+int positionOK(Piece *p, int dossier);
 
-void initialiserFond(Fond *fond, SDL_Renderer *renderer);
-
-void initialiserPuzzle(PiecePuzzle pieces[], int numero_dossier, SDL_Renderer *renderer);
-void libererPieces(PiecePuzzle pieces[], int nombre);
-int  sourisSurPiece(PiecePuzzle *piece, int souris_x, int souris_y);
-int  estSurPositionCible(PiecePuzzle *piece, int numero_dossier);
-void ajusterPositionCible(PiecePuzzle *piece, int numero_dossier);
-void demarrerSecousse(PiecePuzzle *piece);
-void mettreAJourSecousse(PiecePuzzle *piece);
-
-void initialiserChronometre(Chronometre *chrono, SDL_Renderer *renderer);
-void mettreAJourChronometre(Chronometre *chrono);
-void libererChronometre(Chronometre *chrono);
-
-void initialiserMessage(Message *msg, TTF_Font *police, SDL_Color couleur,
-                        const char *texte, SDL_Renderer *renderer);
-void libererMessage(Message *msg);
-void updateZoomMessage(Message *msg);
-
-void appliquerEffetAlerte(SDL_Texture *texture, SDL_Renderer *renderer);
-void renderTexture(SDL_Texture *texture, SDL_Renderer *renderer,
-                   int x, int y, int w, int h);
-void renderTextureScaled(SDL_Texture *texture, SDL_Renderer *renderer,
-                         int x, int y, float scale);
-
-PositionCible obtenirPositionCible(int numero_dossier);
-
-#endif 
+#endif
